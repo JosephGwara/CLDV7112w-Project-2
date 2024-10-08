@@ -5,9 +5,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 
-
+//Table Storage service
 builder.Services.AddScoped<ITableStorageService, TableStorageService>();
+//BlobStorage Service
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+//FileStorage Service
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 var app = builder.Build();
 

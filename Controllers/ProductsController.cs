@@ -9,12 +9,17 @@ namespace CLDV7112w_Project_2.Controllers
     {
         private readonly ITableStorageService _tableStorageService;
         private readonly IBlobStorageService _blobStorageService;
+        private readonly IFileStorageService _fileStorageService;
         private readonly ILogger<ProductsController> _logger;
 
-        public ProductsController(ITableStorageService tableStorageService, IBlobStorageService blobStorageService, ILogger<ProductsController> logger)
+        public ProductsController(ITableStorageService tableStorageService,
+                                  IBlobStorageService blobStorageService,
+                                  IFileStorageService fileStorageService,
+                                  ILogger<ProductsController> logger)
         {
             _tableStorageService = tableStorageService;
             _blobStorageService = blobStorageService;
+            _fileStorageService = fileStorageService;
             _logger = logger;
         }
 
@@ -22,24 +27,28 @@ namespace CLDV7112w_Project_2.Controllers
         public async Task<IActionResult> Index()
         {
             var products = await _tableStorageService.GetProductsAsync();
-
             if (products == null)
             {
                 _logger.LogWarning("GetProductsAsync returned null.");
                 products = new List<Product>();
             }
-
             return View(products);
         }
 
         // GET: Products/Details/partitionKey/rowKey
         public async Task<IActionResult> Details(string partitionKey, string rowKey)
         {
+            if (string.IsNullOrEmpty(partitionKey) || string.IsNullOrEmpty(rowKey))
+            {
+                return BadRequest();
+            }
+
             var product = await _tableStorageService.GetProductAsync(partitionKey, rowKey);
             if (product == null)
             {
                 return NotFound();
             }
+
             return View(product);
         }
 
@@ -58,22 +67,20 @@ namespace CLDV7112w_Project_2.Controllers
             {
                 product.PartitionKey = "Default"; 
                 product.RowKey = Guid.NewGuid().ToString();
+
                 try
                 {
-                    // Write to Table Storage
                     await _tableStorageService.AddProductAsync(product);
-
-                    // Write to Blob Storage
                     await _blobStorageService.UploadProductAsync(product);
+                    await _fileStorageService.UploadProductAsync(product);
 
                     _logger.LogInformation($"Product {product.RowKey} created successfully.");
                     return RedirectToAction(nameof(Index));
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error creating product.");
-                   
-                    ModelState.AddModelError("", "An error occurred while creating the product.");
+                    _logger.LogError(ex, $"Error creating product {product.RowKey}.");
+                    ModelState.AddModelError(string.Empty, "An error occurred while creating the product.");
                 }
             }
             return View(product);
@@ -82,6 +89,11 @@ namespace CLDV7112w_Project_2.Controllers
         // GET: Products/Edit/partitionKey/rowKey
         public async Task<IActionResult> Edit(string partitionKey, string rowKey)
         {
+            if (string.IsNullOrEmpty(partitionKey) || string.IsNullOrEmpty(rowKey))
+            {
+                return BadRequest();
+            }
+
             var product = await _tableStorageService.GetProductAsync(partitionKey, rowKey);
             if (product == null)
             {
@@ -99,19 +111,17 @@ namespace CLDV7112w_Project_2.Controllers
             {
                 try
                 {
-                    // Update in Table Storage
                     await _tableStorageService.UpdateProductAsync(product);
-
-                    // Update in Blob Storage
-                    await _blobStorageService.UploadProductAsync(product); // Overwrites the existing blob
+                    await _blobStorageService.UploadProductAsync(product); // Assuming re-uploading
+                    await _fileStorageService.UploadProductAsync(product); // Re-upload to Azure Files
 
                     _logger.LogInformation($"Product {product.RowKey} updated successfully.");
                     return RedirectToAction(nameof(Index));
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error updating product.");
-                    ModelState.AddModelError("", "An error occurred while updating the product.");
+                    _logger.LogError(ex, $"Error updating product {product.RowKey}.");
+                    ModelState.AddModelError(string.Empty, "An error occurred while updating the product.");
                 }
             }
             return View(product);
@@ -120,35 +130,44 @@ namespace CLDV7112w_Project_2.Controllers
         // GET: Products/Delete/partitionKey/rowKey
         public async Task<IActionResult> Delete(string partitionKey, string rowKey)
         {
+            if (string.IsNullOrEmpty(partitionKey) || string.IsNullOrEmpty(rowKey))
+            {
+                return BadRequest();
+            }
+
             var product = await _tableStorageService.GetProductAsync(partitionKey, rowKey);
             if (product == null)
             {
                 return NotFound();
             }
+
             return View(product);
         }
 
-        // POST: Products/Delete
+        // POST: Products/DeleteConfirmed
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(string partitionKey, string rowKey)
         {
             try
             {
-                // Delete from Table Storage
                 await _tableStorageService.DeleteProductAsync(partitionKey, rowKey);
-
-                // Delete from Blob Storage
                 await _blobStorageService.DeleteProductBlobAsync(rowKey);
+                
 
                 _logger.LogInformation($"Product {rowKey} deleted successfully.");
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting product.");
-             
-                return RedirectToAction(nameof(Delete), new { partitionKey, rowKey });
+                _logger.LogError(ex, $"Error deleting product {rowKey}.");
+                ModelState.AddModelError(string.Empty, "An error occurred while deleting the product.");
+                var product = await _tableStorageService.GetProductAsync(partitionKey, rowKey);
+                if (product == null)
+                {
+                    return NotFound();
+                }
+                return View(product);
             }
         }
     }
