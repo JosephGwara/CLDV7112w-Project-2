@@ -1,2 +1,13 @@
-﻿<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
-<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+﻿
+<environment include="Development">
+    <script src="~/lib/jquery-validation/dist/jquery.validate.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.js"></script>
+</environment>
+<environment exclude="Development">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"
+            integrity="sha384-9/aliU8dGd02PJ3WkVfSxJ7QZXooxXxE9bLlzvZBZ4zXnN8kUX8a5tT5C+PlG8B3"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"
+            integrity="sha384-6wBnCzQ/Yx0TgM6mZZlE/YBrPXnXfHh7oG30cL7BxRZCjdyVkYOi5hKEeKh5m8B/"
+            crossorigin="anonymous"></script>
+</environment>
